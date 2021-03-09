@@ -257,8 +257,8 @@ void processGhostTelemetryFrame()
           bluetooth.write(telemetryRxBuffer, telemetryRxBufferCount);
         }
 #endif
-      processGhostTelemetryValue(GHOST_ID_GPS_LAT, getTelemetryValue_s32le(3));  
-      processGhostTelemetryValue(GHOST_ID_GPS_LONG, getTelemetryValue_s32le(7));
+      processGhostTelemetryValue(GHOST_ID_GPS_LAT, getTelemetryValue_s32le(3) / 10);  
+      processGhostTelemetryValue(GHOST_ID_GPS_LONG, getTelemetryValue_s32le(7) / 10);
       processGhostTelemetryValue(GHOST_ID_GPS_ALT, (int16_t) getTelemetryValue_u16le(11));  
       break; 
     }
