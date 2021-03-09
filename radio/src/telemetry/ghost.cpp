@@ -49,6 +49,13 @@ enum
   GHOST_ID_PACK_VOLTS = 0x000c,         // Battery Pack Voltage
   GHOST_ID_PACK_AMPS = 0x000d,          // Battery Pack Current
   GHOST_ID_PACK_MAH = 0x000e,           // Battery Pack mAh consumed
+
+  GHOST_ID_GPS_LAT = 0x000f,            // GPS Latitude
+  GHOST_ID_GPS_LONG = 0x0010,           // GPS Longitude
+  GHOST_ID_GPS_ALT = 0x0011,            // GPS Altitude
+  GHOST_ID_GPS_HDG = 0x0012,            // GPS Heading
+  GHOST_ID_GPS_GSPD = 0x0013,           // GPS Ground Speed
+  GHOST_ID_GPS_SATS = 0x0014            // GPS Satellite Count
 };
 
 const GhostSensor ghostSensors[] = {
@@ -69,6 +76,13 @@ const GhostSensor ghostSensors[] = {
   {GHOST_ID_PACK_VOLTS,      ZSTR_BATT,             UNIT_VOLTS,             2},
   {GHOST_ID_PACK_AMPS,       ZSTR_CURR,             UNIT_AMPS,              2},
   {GHOST_ID_PACK_MAH,        ZSTR_CAPACITY,         UNIT_MAH,               0},
+
+  {GHOST_ID_GPS_LAT,         ZSTR_GPS,              UNIT_GPS_LATITUDE,      0},
+  {GHOST_ID_GPS_LONG,        ZSTR_GPS,              UNIT_GPS_LONGITUDE,     0},
+  {GHOST_ID_GPS_ALT,         ZSTR_GSPD,             UNIT_KMH,               1},
+  {GHOST_ID_GPS_HDG,         ZSTR_HDG,              UNIT_DEGREE,            3},
+  {GHOST_ID_GPS_GSPD,        ZSTR_ALT,              UNIT_METERS,            0},
+  {GHOST_ID_GPS_SATS,        ZSTR_SATELLITES,       UNIT_RAW,               0},
 
   {0x00,                     NULL,                  UNIT_RAW,               0},
 };
@@ -105,21 +119,33 @@ bool checkGhostTelemetryFrameCRC()
   return (crc == telemetryRxBuffer[len + 1]);
 }
 
+// hifirst
 uint16_t getTelemetryValue_u16(uint8_t index)
 {
   return (telemetryRxBuffer[index] << 8) | telemetryRxBuffer[index + 1];
 }
 
+// lofirst
 uint16_t getTelemetryValue_u16le(uint8_t index)
 {
   return (telemetryRxBuffer[index + 1] << 8) | telemetryRxBuffer[index];
 }
 
+// hifirst
 uint32_t getTelemetryValue_s32(uint8_t index)
 {
   uint32_t val = 0;
   for (int i = 0; i < 4; ++i)
     val <<= 8, val |= telemetryRxBuffer[index + i];
+  return val;
+}
+
+// lofirst
+uint32_t getTelemetryValue_s32le(uint8_t index)
+{
+  uint32_t val = 0;
+  for (int i = 0; i < 4; ++i)
+    val <<= 8, val |= telemetryRxBuffer[index + 3 - i];
   return val;
 }
 
@@ -222,6 +248,34 @@ void processGhostTelemetryFrame()
 
       break;
     }
+
+    case GHST_DL_GPS_PRIMARY: {
+#if defined(BLUETOOTH)
+      if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY && bluetooth.state == BLUETOOTH_STATE_CONNECTED) {
+          bluetooth.write(telemetryRxBuffer, telemetryRxBufferCount);
+        }
+#endif
+      processGhostTelemetryValue(GHOST_ID_GPS_LAT, getTelemetryValue_s32le(3));  
+      processGhostTelemetryValue(GHOST_ID_GPS_LONG, getTelemetryValue_s32le(7));
+      processGhostTelemetryValue(GHOST_ID_GPS_ALT, getTelemetryValue_u16le(11) - 1000);  
+      
+      break; 
+    }
+
+    case GHST_DL_GPS_SECONDARY: {
+#if defined(BLUETOOTH)
+      if (g_eeGeneral.bluetoothMode == BLUETOOTH_TELEMETRY && bluetooth.state == BLUETOOTH_STATE_CONNECTED) {
+          bluetooth.write(telemetryRxBuffer, telemetryRxBufferCount);
+        }
+#endif
+    processGhostTelemetryValue(GHOST_ID_GPS_HDG, getTelemetryValue_u16le(3) / 10);   
+
+    // ground speed is passed via GHST as cm/s, converted to km/h for OpenTx
+    processGhostTelemetryValue(GHOST_ID_GPS_GSPD, (getTelemetryValue_u16le(5) * 36 + 50) / 100);   
+    processGhostTelemetryValue(GHOST_ID_GPS_SATS, telemetryRxBuffer[7]);   
+
+    break; 
+   }
   }
 }
 
@@ -272,6 +326,8 @@ void ghostSetDefault(int index, uint8_t id, uint8_t subId)
   const GhostSensor * sensor = getGhostSensor(id);
   if (sensor) {
     TelemetryUnit unit = sensor->unit;
+    if (unit == UNIT_GPS_LATITUDE || unit == UNIT_GPS_LONGITUDE)
+      unit = UNIT_GPS;
     uint8_t prec = min<uint8_t>(2, sensor->precision);
     telemetrySensor.init(sensor->name, unit, prec);
   }
