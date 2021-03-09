@@ -248,7 +248,6 @@ void processGhostTelemetryFrame()
       processGhostTelemetryValue(GHOST_ID_PACK_VOLTS, getTelemetryValue_u16le(3));
       processGhostTelemetryValue(GHOST_ID_PACK_AMPS, getTelemetryValue_u16le(5));
       processGhostTelemetryValue(GHOST_ID_PACK_MAH, getTelemetryValue_u16le(7) * 10);
-
       break;
     }
 
@@ -260,8 +259,7 @@ void processGhostTelemetryFrame()
 #endif
       processGhostTelemetryValue(GHOST_ID_GPS_LAT, getTelemetryValue_s32le(3));  
       processGhostTelemetryValue(GHOST_ID_GPS_LONG, getTelemetryValue_s32le(7));
-      processGhostTelemetryValue(GHOST_ID_GPS_ALT, getTelemetryValue_u16le(11) - 1000);  
-      
+      processGhostTelemetryValue(GHOST_ID_GPS_ALT, (int16_t) getTelemetryValue_u16le(11));  
       break; 
     }
 
@@ -276,7 +274,6 @@ void processGhostTelemetryFrame()
       // ground speed is passed via GHST as cm/s, converted to km/h for OpenTx
       processGhostTelemetryValue(GHOST_ID_GPS_GSPD, (getTelemetryValue_u16le(3) * 36 + 50) / 100);   
       processGhostTelemetryValue(GHOST_ID_GPS_SATS, telemetryRxBuffer[7]);   
-
       break; 
     }
   }
