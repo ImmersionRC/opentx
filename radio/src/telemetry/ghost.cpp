@@ -79,9 +79,9 @@ const GhostSensor ghostSensors[] = {
 
   {GHOST_ID_GPS_LAT,         ZSTR_GPS,              UNIT_GPS_LATITUDE,      0},
   {GHOST_ID_GPS_LONG,        ZSTR_GPS,              UNIT_GPS_LONGITUDE,     0},
-  {GHOST_ID_GPS_ALT,         ZSTR_GSPD,             UNIT_KMH,               1},
+  {GHOST_ID_GPS_GSPD,        ZSTR_GSPD,             UNIT_KMH,               1},
   {GHOST_ID_GPS_HDG,         ZSTR_HDG,              UNIT_DEGREE,            3},
-  {GHOST_ID_GPS_GSPD,        ZSTR_ALT,              UNIT_METERS,            0},
+  {GHOST_ID_GPS_ALT,         ZSTR_ALT,              UNIT_METERS,            0},
   {GHOST_ID_GPS_SATS,        ZSTR_SATELLITES,       UNIT_RAW,               0},
 
   {0x00,                     NULL,                  UNIT_RAW,               0},
@@ -102,7 +102,10 @@ void processGhostTelemetryValue(uint8_t index, int32_t value)
     return;
 
   const GhostSensor * sensor = getGhostSensor(index);
-  setTelemetryValue(PROTOCOL_TELEMETRY_GHOST, sensor->id, 0, 0, value, sensor->unit, sensor->precision);
+  uint16_t id = sensor->id;
+  if(id == GHOST_ID_GPS_LONG)
+    id = GHOST_ID_GPS_LAT; 
+  setTelemetryValue(PROTOCOL_TELEMETRY_GHOST, id, 0, 0, value, sensor->unit, sensor->precision);
 }
 
 void processGhostTelemetryValueString(const GhostSensor * sensor, const char * str)
@@ -268,14 +271,14 @@ void processGhostTelemetryFrame()
           bluetooth.write(telemetryRxBuffer, telemetryRxBufferCount);
         }
 #endif
-    processGhostTelemetryValue(GHOST_ID_GPS_HDG, getTelemetryValue_u16le(3) / 10);   
+      processGhostTelemetryValue(GHOST_ID_GPS_HDG, getTelemetryValue_u16le(5) / 10);   
 
-    // ground speed is passed via GHST as cm/s, converted to km/h for OpenTx
-    processGhostTelemetryValue(GHOST_ID_GPS_GSPD, (getTelemetryValue_u16le(5) * 36 + 50) / 100);   
-    processGhostTelemetryValue(GHOST_ID_GPS_SATS, telemetryRxBuffer[7]);   
+      // ground speed is passed via GHST as cm/s, converted to km/h for OpenTx
+      processGhostTelemetryValue(GHOST_ID_GPS_GSPD, (getTelemetryValue_u16le(3) * 36 + 50) / 100);   
+      processGhostTelemetryValue(GHOST_ID_GPS_SATS, telemetryRxBuffer[7]);   
 
-    break; 
-   }
+      break; 
+    }
   }
 }
 
